@@ -1,63 +1,229 @@
-# Docker-AzCopy
+# 🚀 AzCopy Docker - Versão Customizada 
 
-[![Build Status](https://app.travis-ci.com/PeterDaveHello/docker-azcopy.svg?branch=master)](https://app.travis-ci.com/PeterDaveHello/docker-azcopy)
-[![Docker Hub pulls](https://img.shields.io/docker/pulls/peterdavehello/azcopy.svg)](https://hub.docker.com/r/peterdavehello/azcopy/)
+[![Build Status](https://github.com/SQ-Green/iac-ban-saas-prd/actions/workflows/azcopy-docker.yml/badge.svg)](https://github.com/SQ-Green/iac-ban-saas-prd/actions/workflows/azcopy-docker.yml)
+[![Docker Hub](https://img.shields.io/docker/pulls/dfsrj/docker-azcopy.svg)](https://hub.docker.com/r/dfsrj/docker-azcopy)
+[![Docker Image Size](https://img.shields.io/docker/image-size/dfsrj/docker-azcopy/latest)](https://hub.docker.com/r/dfsrj/docker-azcopy)
 
-[![Docker Hub badge](http://dockeri.co/image/peterdavehello/azcopy)](https://hub.docker.com/r/peterdavehello/azcopy/)
+Imagem Docker otimizada e customizada do Azure AzCopy, baseada em Alpine Linux com as últimas versões estáveis do AzCopy. Projetada especificamente para automação de sincronização de arquivos entre Azure Storage.
 
-Docker-AzCopy is a Docker image based on Alpine Linux, pre-installed with Azure AzCopy tool. It offers multiple versions of AzCopy to choose from and can be easily utilized and integrated into CI/CD workflows.
+## 🎯 Características
 
-- GitHub: <https://github.com/PeterDaveHello/docker-azcopy>
-- Docker Hub: <https://hub.docker.com/r/peterdavehello/azcopy>
+- ✅ **Sempre atualizada**: Build automático com a última versão estável do AzCopy
+- ✅ **Multi-arquitetura**: Suporte para AMD64 e ARM64
+- ✅ **Imagem mínima**: Baseada em Alpine Linux (~50MB)
+- ✅ **Segurança**: Execução com usuário não-root
+- ✅ **CI/CD Ready**: Otimizada para pipelines de automação
+- ✅ **Verificação diária**: Workflow automatizado para detectar novas versões
 
-See the [AzCopy README](https://github.com/Azure/azure-storage-azcopy/#readme) for more information.
+## 📦 Repositórios da Imagem
 
-## Docker image Repository
+- **Docker Hub**: `dfsrj/docker-azcopy`
+- **GitHub**: `ghcr.io/diogofrj/docker-azcopy`
 
-We push the built image to Docker Hub and GitHub Container Registry:
+## 🏷️ Tags Disponíveis
 
-- GitHub Container Registry:
-  - `ghcr.io/peterdavehello/azcopy`
-  - <https://github.com/PeterDaveHello/azcopy/pkgs/container/azcopy>
-- Docker Hub:
-  - `peterdavehello/azcopy`
-  - <https://hub.docker.com/r/peterdavehello/azcopy/>
+- `latest` - Última versão estável
+- `10.x.x` - Versão específica do AzCopy
+- `10.x` - Última versão minor
+- `10` - Última versão major
 
-Use the prefix `ghcr.io/` if you prefer to use GitHub Container Registry.
+## 🚀 Uso Básico
 
-## Versioning
-
-The Docker image tags available here correspond to Azure AzCopy versions found on [its releases page on GitHub](https://github.com/Azure/azure-storage-azcopy/releases), without the `v` prefix.
-
-The `latest` tag and short version (version string without the minor or patch version) are also supported. For example, using tag `10` will be the same as using the latest `10.x.y`, whatever the current latest version of v10 is.
-
-You can find valid versions on the [Docker Hub Tags](https://hub.docker.com/r/peterdavehello/azcopy/tags) page.
-
-Although most versions of AzCopy have corresponding images here, please note that inactive images may be removed by Docker Hub. For more information, see the Docker blog post "[Scaling Docker's business to serve millions more developers, storage partners, and enterprises](https://www.docker.com/blog/scaling-dockers-business-to-serve-millions-more-developers-storage/)."
-
-## Usage
-
-```sh
-docker run --rm -it -v /local/path/to/mount:/container/path peterdavehello/azcopy[:<version>] azcopy [command] [arguments]
+### Comando simples
+```bash
+docker run --rm dfsrj/docker-azcopy:latest --version
 ```
 
-For example:
-
-```sh
-docker run --rm -it -v $PWD/src:/src peterdavehello/azcopy:10.11.0 azcopy sync /src https://azcopydockertest.blob.core.windows.net/$$web
+### Sincronização de arquivos
+```bash
+docker run --rm -v $PWD:/workspace \
+  dfsrj/docker-azcopy:latest \
+  sync "/workspace/local-folder" "https://account.blob.core.windows.net/container?SAS_TOKEN" \
+  --recursive --delete-destination
 ```
 
-You can also confirm its version by:
-
-```sh
-$ docker run --rm -it -v $PWD/src:/src peterdavehello/azcopy:10.11.0 azcopy --version
-
-Unable to find image 'peterdavehello/azcopy:10.11.0' locally
-10.11.0: Pulling from peterdavehello/azcopy
-540db60ca938: Already exists 
-2bb029cc37b3: Pull complete 
-0706491099ca: Pull complete 
-Digest: sha256:bf339591009673060633cf95c3339e386a3d4e187e206da116547ac081a0b375
-Status: Downloaded newer image for peterdavehello/azcopy:10.11.0
-azcopy version 10.11.0
+### Sincronização FileShare para Blob (caso de uso principal)
+```bash
+docker run --rm \
+  -e SAS_ORIGEM="se=2025-07-16T14:59:59Z&sp=r..." \
+  -e SAS_DESTINO="se=2025-07-16T14:59:59Z&sp=rwcl..." \
+  dfsrj/docker-azcopy:latest \
+  sync "https://source.file.core.windows.net/share?$SAS_ORIGEM" \
+       "https://dest.blob.core.windows.net/container?$SAS_DESTINO" \
+  --from-to=FileBlob --recursive --delete-destination
 ```
+
+## 🔧 Uso Avançado
+
+### Script personalizado
+```bash
+#!/bin/bash
+# script-sync.sh
+
+SOURCE_URL="https://source.file.core.windows.net/share?$SAS_ORIGEM"
+DEST_URL="https://dest.blob.core.windows.net/container?$SAS_DESTINO"
+
+docker run --rm \
+  -v $PWD:/workspace \
+  -e SAS_ORIGEM="$SAS_ORIGEM" \
+  -e SAS_DESTINO="$SAS_DESTINO" \
+  dfsrj/docker-azcopy:latest \
+  sync "$SOURCE_URL" "$DEST_URL" \
+  --from-to=FileBlob \
+  --recursive \
+  --delete-destination \
+  --log-level=INFO
+```
+
+### Docker Compose
+```yaml
+version: '3.8'
+services:
+  azcopy-sync:
+    image: dfsrj/docker-azcopy:latest
+    environment:
+      - SAS_ORIGEM=${SAS_ORIGEM}
+      - SAS_DESTINO=${SAS_DESTINO}
+    volumes:
+      - ./scripts:/scripts:ro
+    command: |
+      sync "https://source.file.core.windows.net/share?$$SAS_ORIGEM" 
+           "https://dest.blob.core.windows.net/container?$$SAS_DESTINO"
+           --from-to=FileBlob --recursive --delete-destination
+```
+
+## 🎛️ Kubernetes Integration
+
+### CronJob para sincronização automática
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: azcopy-sync
+spec:
+  schedule: "0 */6 * * *"  # A cada 6 horas
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: azcopy-sync
+            image: dfsrj/docker-azcopy:latest
+            command: ["azcopy", "sync"]
+            args:
+              - "https://source.file.core.windows.net/share?$(SAS_ORIGEM)"
+              - "https://dest.blob.core.windows.net/container?$(SAS_DESTINO)"
+              - "--from-to=FileBlob"
+              - "--recursive"
+              - "--delete-destination"
+            env:
+            - name: SAS_ORIGEM
+              valueFrom:
+                secretKeyRef:
+                  name: azcopy-tokens
+                  key: sas-origem
+            - name: SAS_DESTINO
+              valueFrom:
+                secretKeyRef:
+                  name: azcopy-tokens
+                  key: sas-destino
+          restartPolicy: OnFailure
+```
+
+## 🔍 Verificação de Versão
+
+```bash
+# Verificar versão atual
+docker run --rm dfsrj/docker-azcopy:latest --version
+
+# Saída esperada:
+# azcopy version 10.x.x
+```
+
+## 🛠️ Build Local
+
+```bash
+# Build da imagem
+docker build -t meu-azcopy .
+
+# Test local
+docker run --rm meu-azcopy --version
+```
+
+## 📋 Comandos Úteis
+
+### Listar conteúdo
+```bash
+docker run --rm dfsrj/docker-azcopy:latest \
+  list "https://account.blob.core.windows.net/container?SAS_TOKEN"
+```
+
+### Copy com progresso
+```bash
+docker run --rm -v $PWD:/workspace dfsrj/docker-azcopy:latest \
+  copy "/workspace/file.txt" "https://account.blob.core.windows.net/container/file.txt?SAS_TOKEN" \
+  --log-level=INFO
+```
+
+### Sync com filtros
+```bash
+docker run --rm dfsrj/docker-azcopy:latest \
+  sync "source" "destination" \
+  --include-pattern="*.pdf;*.doc*" \
+  --exclude-pattern="temp/*"
+```
+
+## 🔒 Segurança
+
+- Execução com usuário não-root (UID/GID 1000)
+- Scan de vulnerabilidades automatizado com Trivy
+- Imagem baseada em Alpine Linux (minimal attack surface)
+- Certificados CA atualizados
+
+## 📊 Monitoramento
+
+### Logs estruturados
+```bash
+docker run --rm dfsrj/docker-azcopy:latest \
+  sync "source" "destination" \
+  --log-level=INFO \
+  --output-type=json
+```
+
+### Métricas de performance
+```bash
+docker run --rm dfsrj/docker-azcopy:latest \
+  sync "source" "destination" \
+  --cap-mbps=100 \
+  --log-level=INFO
+```
+
+## 🤝 Contribuição
+
+1. Fork do repositório
+2. Crie uma branch para sua feature
+3. Commit suas mudanças
+4. Push para a branch
+5. Abra um Pull Request
+
+## 📄 Licença
+
+MIT License - veja o arquivo LICENSE para detalhes.
+
+## 🆘 Suporte
+
+- **GitHub Issues**: [Reportar problemas](https://github.com/diogofrj/docker-azcopy/issues)
+- **Documentação AzCopy**: [Documentação oficial](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy)
+
+## 📈 Changelog
+
+### Latest AzCopy: 10.x.x
+- ✅ Build automático com última versão estável
+- ✅ Multi-arquitetura (AMD64/ARM64)
+- ✅ Otimizações de performance
+- ✅ Segurança aprimorada
+
+---
+
+**Mantido por:** [Diogo Fernandes](mailto:dfs@outlook.com.br) - iachero  
+**Baseado em:** [Azure AzCopy](https://github.com/Azure/azure-storage-azcopy)

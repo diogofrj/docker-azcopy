@@ -1,0 +1,85 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Build artifacts
+build/
+dist/
+target/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+docker-compose.yml
+docker-compose.yaml
+Dockerfile.dev
+Dockerfile.test
+
+# Scripts (except build scripts)
+*.sh
+!hooks/build
+
+# Test files
+test/
+tests/
+spec/
+
+# CI/CD files
+.travis.yml
+.gitlab-ci.yml
+Jenkinsfile
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Node.js (if applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Python (if applicable)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Go (if applicable)
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.sum

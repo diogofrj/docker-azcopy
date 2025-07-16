@@ -1,0 +1,173 @@
+name: 🚀 Build & Push AzCopy Docker Image
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'azcopy/docker-azcopy/**'
+      - '.github/workflows/azcopy-docker.yml'
+  pull_request:
+    branches: [ main ]
+    paths: 
+      - 'azcopy/docker-azcopy/**'
+      - '.github/workflows/azcopy-docker.yml'
+#   schedule:
+#     # Check for new AzCopy releases daily at 2 AM UTC
+#     - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: dfsrj/docker-azcopy
+  DOCKERFILE_PATH: azcopy/docker-azcopy/Dockerfile
+
+jobs:
+  # =============================================================================
+  # Job 1: Check for new AzCopy releases
+  # =============================================================================
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      azcopy-version: ${{ steps.version.outputs.version }}
+      should-build: ${{ steps.version.outputs.should_build }}
+    steps:
+      - name: 🔍 Check latest AzCopy version
+        id: version
+        run: |
+          # Get latest stable version from GitHub API
+          LATEST_VERSION=$(curl -sL https://api.github.com/repos/Azure/azure-storage-azcopy/releases/latest | \
+            jq -r '.tag_name' | sed 's/^v//')
+          
+          echo "Latest AzCopy version: $LATEST_VERSION"
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          
+          # Check if we should build (for scheduled runs, always build)
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+  # =============================================================================
+  # Job 2: Build and push Docker image
+  # =============================================================================
+  build-push:
+    needs: check-version
+    if: needs.check-version.outputs.should-build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔑 Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 📝 Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=auto
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}},value=${{ needs.check-version.outputs.azcopy-version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.check-version.outputs.azcopy-version }}
+            type=semver,pattern={{major}},value=${{ needs.check-version.outputs.azcopy-version }}
+            type=raw,value=${{ needs.check-version.outputs.azcopy-version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 🏗️ Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================================================
+  # Job 3: Test the built image
+  # =============================================================================
+  test:
+    needs: [check-version, build-push]
+    if: needs.check-version.outputs.should-build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🧪 Test Docker image
+        run: |
+          echo "🔍 Testing AzCopy version in container..."
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-version.outputs.azcopy-version }} --version
+          
+          echo "🔍 Testing AzCopy help command..."
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-version.outputs.azcopy-version }} --help
+          
+          echo "✅ Docker image tests passed!"
+
+  # =============================================================================
+  # Job 4: Security scan
+  # =============================================================================
+  security-scan:
+    needs: [check-version, build-push]
+    if: needs.check-version.outputs.should-build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔐 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-version.outputs.azcopy-version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📊 Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # =============================================================================
+  # Job 5: Update README with new version
+  # =============================================================================
+  update-readme:
+    needs: [check-version, build-push, test]
+    if: needs.check-version.outputs.should-build == 'true' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📝 Update README.md
+        run: |
+          cd azcopy/docker-azcopy
+          sed -i "s/azcopy version [0-9]\+\.[0-9]\+\.[0-9]\+/azcopy version ${{ needs.check-version.outputs.azcopy-version }}/g" README.md
+          sed -i "s/Latest AzCopy: [0-9]\+\.[0-9]\+\.[0-9]\+/Latest AzCopy: ${{ needs.check-version.outputs.azcopy-version }}/g" README.md
+
+      - name: 📤 Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add azcopy/docker-azcopy/README.md
+          git diff --staged --quiet || git commit -m "🤖 Update README with AzCopy version ${{ needs.check-version.outputs.azcopy-version }}"
+          git push
